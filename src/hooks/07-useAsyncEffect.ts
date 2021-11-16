@@ -1,0 +1,43 @@
+import {
+  DependencyList,
+  EffectCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from 'react'
+
+type Destructor = ReturnType<EffectCallback>
+
+type UseAsyncEffectHook = {
+  (
+    effect: () => Promise<void>,
+    destructor?: Destructor,
+    deps?: DependencyList
+  ): void
+  (effect: () => Promise<void>, deps?: DependencyList): void
+}
+
+export const useAsyncEffect: UseAsyncEffectHook = (
+  effect: () => Promise<void>,
+  destructor?: Destructor | DependencyList,
+  deps?: DependencyList
+) => {
+  const willDestroy = typeof destructor === 'function'
+  const dependencyList = willDestroy ? deps : (destructor as DependencyList)
+
+  // as 4 linhas abaixo são usadas para não precisar fazer memoização
+  const handler = useRef(effect)
+  useLayoutEffect(() => {
+    handler.current = effect
+  })
+
+  useEffect(() => {
+    handler.current()
+
+    return () => {
+      if (willDestroy) {
+        destructor()
+      }
+    }
+  }, [dependencyList, willDestroy, destructor])
+}
